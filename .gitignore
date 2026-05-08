@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# User data
+all_users.csv
+all_users.json
+*.csv
+*.json
+
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
