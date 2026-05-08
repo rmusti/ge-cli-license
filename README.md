@@ -1,152 +1,104 @@
-# Gemini Enterprise CLI
+# Gemini Enterprise License CLI (Discovery Engine)
 
-This CLI tool allows you to interact with Google Cloud Discovery Engine (Vertex AI Agent Builder) to list engines and agents, and retrieve detailed agent configurations.
+This CLI tool manages user licenses for the Discovery Engine API (Vertex AI Agent Builder). It is designed to handle large-scale environments (800+ users) by implementing automatic pagination and batch chunking.
 
-## Features
+## 🚀 Quick Start
 
--   List all engines (apps) in a project.
--   List all agents within a specific engine.
--   Get the detailed JSON configuration of a specific agent.
--   Uses Application Default Credentials (ADC).
--   Supports configuration via `.env` file.
+Ensure your `.env` file contains your `PROJECT_ID`.
 
-## Prerequisites
-
--   Python 3
--   `gcloud` CLI installed and authenticated.
--   Discovery Engine API enabled in your GCP project.
-
-## Setup
-
-1.  **Clone or copy the files** to your working directory.
-2.  **Create a virtual environment** and install dependencies:
-    ```bash
-    python3 -m venv venv
-    ./venv/bin/pip install requests google-auth python-dotenv
-    ```
-3.  **Configure Environment Variables**:
-    Create a `.env` file in the same directory and set your Project ID and default Engine ID:
-    ```env
-    PROJECT_ID=your-gcp-project-id
-    ENGINE_ID=your-default-engine-id
-    ```
-
-## Authentication & Quota Project
-
-This tool uses Application Default Credentials (ADC). To authenticate, run:
 ```bash
-gcloud auth application-default login
+chmod +x ge_cli_license.sh
 ```
 
-The Discovery Engine API requires a quota project for billing. You can set it globally for ADC:
+---
+
+## 📋 Commands & Usage
+
+### 1. Listing Users (`list`)
+Retrieves all assigned and unassigned licenses in the project. Supports automatic pagination for large datasets.
+
+**Options:**
+* `--format`: `table` (default), `json`, or `csv`.
+* `--output`: Path to save the results.
+
+**Examples:**
 ```bash
-gcloud auth application-default set-quota-project your-gcp-project-id
-```
-Alternatively, you can pass it via the `--quota-project` flag to the script.
+# View in terminal
+./ge_cli_license.sh list
 
-## Usage
+# Export to CSV (for Excel/Google Sheets)
+./ge_cli_license.sh list --format csv --output all_users.csv
 
-You can use the shell script wrapper `ge_cli.sh` or call the Python script directly from the virtual environment.
-
-### 1. List Engines
-
-Lists all engines in the project specified in `.env`.
-
-Using shell script:
-```bash
-./ge_cli.sh
-```
-or
-```bash
-./ge_cli.sh engines
-```
-
-Using Python directly:
-```bash
-./venv/bin/python ge_cli.py engines
+# Export to JSON (ready for batch-update reuse)
+./ge_cli_license.sh list --format json --output all_users.json
 ```
 
-### 2. List Agents in an Engine
+---
 
-Lists all agents within a specific engine. If `ENGINE_ID` is set in `.env`, it will be used as default.
+### 2. Single User Update (`update`)
+Add or modify a single user's license status.
 
-Using shell script:
+**⚠️ CRITICAL:** You must provide `--config` when assigning a license to a new user to avoid the `NO_LICENSE` state.
+
+**Examples:**
 ```bash
-./ge_cli.sh agents list
+# Assign license (Correct way)
+./ge_cli_license.sh update user@example.com --state ASSIGNED --config "projects/YOUR_PROJECT/locations/global/licenseConfigs/internal_only_agent_space"
+
+# Revoke/Unassign license
+./ge_cli_license.sh update user@example.com --state UNASSIGNED
 ```
 
-Using Python directly:
+---
+
+### 3. Bulk Batch Update (`batch-update`)
+Update hundreds of users at once using a JSON file. The tool automatically splits the file into batches of 100 to stay within API limits.
+
+**Options:**
+* `--delete-unassigned`: **Sync Mode**. If used, any user NOT in your JSON file will have their license deleted.
+
+**Examples:**
 ```bash
-./venv/bin/python ge_cli.py agents list
+# Standard Update (Updates users in file, leaves others alone)
+./ge_cli_license.sh batch-update my_users.json
+
+# Full Sync (Makes the system match your file EXACTLY)
+./ge_cli_license.sh batch-update my_users.json --delete-unassigned
 ```
 
-Or override engine:
+---
+
+### 4. Get User Details (`get`)
+Fetches the complete raw JSON data for a specific user.
+
 ```bash
-./ge_cli.sh agents list --engine YOUR_ENGINE_ID
+./ge_cli_license.sh get user@example.com
 ```
 
-### 3. Get Detailed Agent Configuration
+---
 
-Retrieves the detailed JSON configuration of a specific agent.
+### 5. Developer/API Reference (`--curl-only`)
+Displays the exact raw `curl` commands with placeholders.
 
-Using shell script:
 ```bash
-./ge_cli.sh agents get YOUR_AGENT_ID
+./ge_cli_license.sh --curl-only
 ```
 
-Using Python directly:
-```bash
-./venv/bin/python ge_cli.py agents get YOUR_AGENT_ID
-```
+---
 
-### 4. Get Agent IAM Policy
+## 🛠 Features & Advanced Logic
 
-Retrieves the IAM policy of a specific agent (experimental).
+### 💡 The `NO_LICENSE` State
+If a user shows as `NO_LICENSE` in the list, it means they are `ASSIGNED` in name but lack a valid `licenseConfig`.
+**Fix:** Run the `update` command again for that user and include the `--config` parameter.
 
-Using shell script:
-```bash
-./ge_cli.sh agents get-iam YOUR_AGENT_ID
-```
+### 📄 Output Formats
+* **CSV**: Generates a flat file with headers: `userPrincipal`, `licenseAssignmentState`, `licenseConfig`, `createTime`, `updateTime`, `lastLoginTime`.
+* **JSON**: Generates a list of objects that can be used directly as input for the `batch-update` command.
 
-Using Python directly:
-```bash
-./venv/bin/python ge_cli.py agents get-iam YOUR_AGENT_ID
-```
+### ⚡ Scaling Logic
+* **Pagination**: The `list` command automatically detects the `nextPageToken` and continues calling the API until all users are retrieved.
+* **Batch Chunking**: The `batch-update` command splits your input list into groups of 100 and processes them sequentially to avoid "Payload Too Large" errors.
 
-## Datastores Commands
-
-### 1. List Datastores
-
-Lists all datastores in the project specified in `.env`.
-
-Using shell script:
-```bash
-./ge_cli.sh datastores list
-```
-
-Using Python directly:
-```bash
-./venv/bin/python ge_cli.py datastores list
-```
-
-### 2. Get Datastore Details
-
-Retrieves the detailed JSON configuration of a specific datastore.
-
-Using shell script:
-```bash
-./ge_cli.sh datastores get YOUR_DATASTORE_ID
-```
-
-Using Python directly:
-```bash
-./venv/bin/python ge_cli.py datastores get YOUR_DATASTORE_ID
-```
-
-## Options
-
--   `--project`: Override the GCP Project ID.
--   `--location`: Set the location (default: `global`).
--   `--collection`: Set the collection (default: `default_collection`).
--   `--quota-project`: Set the quota project for billing.
--   `--assistant`: Set the assistant ID (default: `default_assistant`).
+### 🔒 Field Masking
+The tool uses `updateMask` internally during updates. This ensures that if you only provide the `state`, other fields (like the user's creation time) are preserved and not overwritten with null values.
