@@ -2,13 +2,25 @@
 
 This CLI tool manages user licenses for the Discovery Engine API (Vertex AI Agent Builder). It is designed to handle large-scale environments (800+ users) by implementing automatic pagination and batch chunking.
 
-## 🚀 Quick Start
+## 🚀 Setup & Quick Start
 
-Ensure your `.env` file contains your `PROJECT_ID`.
+1. **Configure Environment Variables:**
+   Copy the example environment file and update it with your project details:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` and set your `PROJECT_ID`.
 
-```bash
-chmod +x ge_cli_license.sh
-```
+2. **Set Permissions:**
+   ```bash
+   chmod +x ge_cli_license.sh
+   ```
+
+3. **Authentication:**
+   Ensure you are authenticated with Google Cloud:
+   ```bash
+   gcloud auth application-default login
+   ```
 
 ---
 
